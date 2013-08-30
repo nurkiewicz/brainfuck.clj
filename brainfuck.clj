@@ -1,27 +1,27 @@
 (defn brainfuck-interpreter [& lines]
 	(let [program (str lines)
-		goto-bracket (fn [same-bracket other-bracket inst-ptr dir] 
-			(loop [i (dir inst-ptr) opened 0]
+		goto-bracket (fn [same-bracket other-bracket ip dir] 
+			(loop [i (dir ip) opened 0]
 				(condp = (nth program i)
 					same-bracket	(recur (dir i) (inc opened))
 					other-bracket	(if (zero? opened) i (recur (dir i) (dec opened)))
 					(recur (dir i) opened))))]
-		(loop [cells [0N], cells-ptr 0, inst-ptr 0]
-			(condp = (get program inst-ptr)
-				\>	(let [next-ptr (inc cells-ptr)
+		(loop [cells [0N], cell 0, ip 0]
+			(condp = (get program ip)
+				\>	(let [next-ptr (inc cell)
 							next-cells (if (= next-ptr (count cells)) (conj cells 0N) cells)]
-						(recur next-cells next-ptr (inc inst-ptr)))
-				\<	(recur cells (dec cells-ptr) (inc inst-ptr))
-				\+	(recur (update-in cells [cells-ptr] inc) cells-ptr (inc inst-ptr))
-				\-	(recur (update-in cells [cells-ptr] dec) cells-ptr (inc inst-ptr))
+						(recur next-cells next-ptr (inc ip)))
+				\<	(recur cells (dec cell) (inc ip))
+				\+	(recur (update-in cells [cell] inc) cell (inc ip))
+				\-	(recur (update-in cells [cell] dec) cell (inc ip))
 				\.	(do
-						(print (char (nth cells cells-ptr)))
-						(recur cells cells-ptr (inc inst-ptr)))
+						(print (char (nth cells cell)))
+						(recur cells cell (inc ip)))
 				\,	(let [ch (.read System/in)]
-						(recur (assoc cells cells-ptr ch) cells-ptr (inc inst-ptr)))
-				\[	(recur cells cells-ptr (inc (if (zero? (nth cells cells-ptr))
-						(goto-bracket \[ \] inst-ptr inc)
-						inst-ptr)))
-				\]	(recur cells cells-ptr (goto-bracket \] \[ inst-ptr dec))
+						(recur (assoc cells cell ch) cell (inc ip)))
+				\[	(recur cells cell (inc (if (zero? (nth cells cell))
+						(goto-bracket \[ \] ip inc)
+						ip)))
+				\]	(recur cells cell (goto-bracket \] \[ ip dec))
 				nil cells
-				(recur cells cells-ptr (inc inst-ptr))))))
+				(recur cells cell (inc ip))))))
