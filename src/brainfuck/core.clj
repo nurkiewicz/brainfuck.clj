@@ -1,6 +1,8 @@
+(ns brainfuck.core)
+
 (defn brainfuck-interpreter [& lines]
-	(let [program (str lines)
-		goto-bracket (fn [same-bracket other-bracket ip dir] 
+	(let [program (apply str lines)
+		goto-bracket (fn [same-bracket other-bracket ip dir]
 			(loop [i (dir ip) opened 0]
 				(condp = (nth program i)
 					same-bracket	(recur (dir i) (inc opened))
