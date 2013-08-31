@@ -1,4 +1,4 @@
-(ns brainfuck.core)
+(ns com.blogspot.nurkiewicz.brainfuck.interpreter)
 
 (defn brainfuck-interpreter [& lines]
 	(let [program (apply str lines)

@@ -1,6 +1,6 @@
-(ns brainfuck.core-test
+(ns com.blogspot.nurkiewicz.brainfuck.interpreter-test
   (:require [clojure.test :refer :all]
-            [brainfuck.core :refer :all]))
+            [com.blogspot.nurkiewicz.brainfuck.interpreter :refer :all]))
 
 (deftest empty-program
     (is (= (brainfuck-interpreter "") [0])))
