@@ -2,7 +2,7 @@
 
 (declare brainfuck-seq-translator)
 
-(defn- loop-end [program]
+(defn- loop-end-idx [program]
 	(loop [idx 1 open-brackets 0]
 		(condp = (nth program idx)
 			\]	(if (zero? open-brackets)
@@ -12,7 +12,7 @@
 				(recur (inc idx) open-brackets))))
 
 (defn- insert-loop-fun-direct [loop-name program code]
-	(let [loop-body (->> program (take (loop-end program)) rest)
+	(let [loop-body (->> program (take (loop-end-idx program)) rest)
 		loop-body-code (brainfuck-seq-translator loop-body)
 		loop-code 
 			`(loop [~'state ~'state]
@@ -30,14 +30,14 @@
 
 (defn- brainfuck-seq-translator [program]
 	(apply list
-		(loop [code `[-> ~'state] program program]
+		(loop [code `[-> ~'state], program program]
 			(condp = (first program)
 				\> (recur (conj code `~'move-right) (rest program))
 				\< (recur (conj code `~'move-left) (rest program))
 				\+ (recur (conj code `~'cell-inc) (rest program))
 				\- (recur (conj code `~'cell-dec) (rest program))
 				\[ (let [loop-name (gensym "loop")
-					loop-body (drop (loop-end program) program)]
+					loop-body (drop (loop-end-idx program) program)]
 					(recur 
 						(->> `~loop-name (conj code) (insert-loop-fun loop-name program)) 
 						loop-body))
