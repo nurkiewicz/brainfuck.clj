@@ -11,7 +11,7 @@
 			\[	(recur (inc idx) (inc open-brackets))
 				(recur (inc idx) open-brackets))))
 
-(defn- insert-loop-fun-direct [loop-name program code]
+(defn- insert-loop-fun [loop-name program code]
 	(let [loop-body (->> program (take (loop-end-idx program)) rest)
 		loop-body-code (brainfuck-seq-translator loop-body)
 		loop-code 
@@ -22,26 +22,22 @@
 		inner-loop-fun (-> code second (conj `(~loop-name [~'state] ~loop-code)))]
 		(assoc code 1 inner-loop-fun)))
 
-(defn- insert-loop-fun [loop-name program code]
-	(insert-loop-fun-direct loop-name program 
-		(if (= (first code) `letfn) 
-			code 
-			`[letfn [] ~(apply list code)])))
+(defn- append-cmd [code cmd] (update-in code [2] #(conj % cmd)))
 
 (defn- brainfuck-seq-translator [program]
 	(apply list
-		(loop [code `[-> ~'state], program program]
+		(loop [code [`letfn [] `[-> ~'state]], program program]
 			(condp = (first program)
-				\> (recur (conj code `~'move-right) (rest program))
-				\< (recur (conj code `~'move-left) (rest program))
-				\+ (recur (conj code `~'cell-inc) (rest program))
-				\- (recur (conj code `~'cell-dec) (rest program))
+				\> (recur (append-cmd code `~'move-right) (rest program))
+				\< (recur (append-cmd code `~'move-left) (rest program))
+				\+ (recur (append-cmd code `~'cell-inc) (rest program))
+				\- (recur (append-cmd code `~'cell-dec) (rest program))
 				\[ (let [loop-name (gensym "loop")
 					loop-body (drop (loop-end-idx program) program)]
 					(recur 
-						(->> `~loop-name (conj code) (insert-loop-fun loop-name program)) 
+						(->> `~loop-name (append-cmd code) (insert-loop-fun loop-name program)) 
 						loop-body))
-				nil code
+				nil (update-in code [2] #(apply list %))
 				(recur code (rest program))
 				))))
 
