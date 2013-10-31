@@ -24,6 +24,11 @@
 
 (defn- append-cmd [code cmd] (update-in code [2] #(conj % cmd)))
 
+(defn- optimize [code]
+	(if (empty? (second code))
+		(last code)
+		code))
+
 (defn- brainfuck-seq-translator [program]
 	(apply list
 		(loop [code [`letfn [] `[-> ~'state]], program program]
@@ -37,7 +42,7 @@
 					(recur 
 						(->> `~loop-name (append-cmd code) (insert-loop-fun loop-name program)) 
 						loop-body))
-				nil (update-in code [2] #(apply list %))
+				nil (-> code (update-in [2] #(apply list %)) optimize)
 				(recur code (rest program))
 				))))
 
