@@ -47,10 +47,8 @@
 (defmacro brainfuck [& instructions]
 	(concat
 		`(let [~'state {:cells [0N], :ptr 0}
-			~'make-update-cell-fn (fn [~'fun]
-				(fn [~'state] (update-in ~'state [:cells] #(update-in % [(:ptr ~'state)] ~'fun))))
-			~'cell-inc (~'make-update-cell-fn inc)
-			~'cell-dec (~'make-update-cell-fn dec)
+			~'cell-inc (fn [~'state] (update-in ~'state [:cells (:ptr ~'state)] inc))
+			~'cell-dec (fn [~'state] (update-in ~'state [:cells (:ptr ~'state)] dec))
 			~'move-right (fn [~'state] 
 				(let [{:keys [~'cells ~'ptr]} ~'state]
 					(if (= (inc ~'ptr) (count ~'cells))
