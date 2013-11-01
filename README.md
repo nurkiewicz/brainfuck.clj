@@ -80,7 +80,7 @@ Using this interpreter is quite simple. It terminates when it encounters end of 
 
 Last time we developed [brainfuck interpreter in Clojure](http://nurkiewicz.blogspot.com/2013/10/brainfuck-in-clojure-part-i-interpreter.html). This time we will write a compiler. Compilation has two advantages over interpretation: the resulting program tends to be faster and source program is lost/obscured in binary. It turns out that a [brainfuck](http://en.wikipedia.org/wiki/Brainfuck) compiler (to any assembly/bytecode) is not really that complex - brainfuck is very low level and similar to typical CPU architectures (chunk of mutable memory, modified one cell at a time). Thus we will go for something slightly different. Instead of producing JVM bytecode (which some [already did](https://github.com/joegallo/brainfuck/blob/master/src/brain/fuck.clj)) we shall write a Clojure macro that will generate code equivalent to any brainfuck program. In other words we will produce Clojure source equivalent to brainfuck source - at compile time.
 
-This task is actually more challenging because idiomatic Clojure is much different from idiomatic brainfuck (if such thing as "*idiomatic brainfuck*" ever existed). In essence every brainfuck program is a sequence of steps, each mutating state (or producing new state based on the current one). For example (please refer to [brainfuck language overview](http://esolangs.org/wiki/Brainfuck#Language_overview) if you haven't yet, there are just 8 commands) the translation from "`++>-<`" in brainfuck to Clojure might look like this:
+This task is actually more challenging because idiomatic Clojure is much different from idiomatic brainfuck (if such thing as "*idiomatic brainfuck*" ever existed). Let's first think how such a Clojure code could look like and then write generator/translator. In essence every brainfuck program is a sequence of steps, each mutating state (or producing new state based on the current one). For example (please refer to [brainfuck language overview](http://esolangs.org/wiki/Brainfuck#Language_overview) if you haven't yet, there are just 8 commands) the translation from "`++>-<`" in brainfuck to Clojure might look like this:
 
     (let [state {:ptr 0, :cells [0N]}]
       (-> state 
@@ -88,36 +88,37 @@ This task is actually more challenging because idiomatic Clojure is much differe
         cell-inc
         move-right
         cell-dec
-        )
+        move-left)
 
-First we define immutable `state` (an array of `cells` with one item and a `ptr` (index) to the current cell) and then apply a sequence of transformations on top of it. Each transformation (function yet to be defined) yields new state. The `->` macro is a syntactic sugar, more readable than:
+First we define immutable `state` (an array of `cells` with one item and a `ptr` (index) to the current cell) and then apply a sequence of transformations on top of it. Each transformation yields new state. The `->` macro is a syntactic sugar, more readable than:
 
-        (cell-dec
-          (move-right
-            (cell-inc
-              (cell-inc state))
+        (move-left
+          (cell-dec
+            (move-right
+              (cell-inc
+                (cell-inc state))
 
-OK, so let's define all these functions:
+OK, so let's define all these transformations:
 
 	(let [state {:ptr 0, :cells [0N]}
 	    cell-inc (fn [state] (update-in state [:cells (:ptr state)] inc))
 	    cell-dec (fn [state] (update-in state [:cells (:ptr state)] dec))
-	    move-right (fn [state] (update-in state [:ptr] inc))]
+	    move-right (fn [state] (update-in state [:ptr] inc))
 	    move-left  (fn [state] (update-in state [:ptr] dec))]
 	  (-> state 
 	    cell-inc 
 	    cell-inc
 	    move-right
 	    cell-dec
-	    ))
+        move-left))
 
-`move-right` is actually more complex because it has to grow `cells` when needed but it's irrelevant. With these helper functions it's easy to translate any brainfuck program into Clojure - simply by replacing `+`, `-`, `>` and `<` operators with corresponding functions. Well, we aren't quite there yet. In order to be [Turing complete](http://en.wikipedia.org/wiki/Turing_completeness) needs some form of conditional statement. brainfuck has two conditional jump instructions, `[` and `]`. For our purposes we can treat each pair of square brackets as a single instruction (conceptually it is a `while` loop). So for example `++[>+<-]>` has four instructions:
+`move-right` is actually more complex because it has to grow `cells` when needed but it's irrelevant here. With these helper functions it's easy to translate any brainfuck program into Clojure - simply by replacing `+`, `-`, `>` and `<` operators with corresponding functions. Well, we aren't quite there yet. In order to be [Turing complete](http://en.wikipedia.org/wiki/Turing_completeness) brainfuck needs some form of conditional statement. brainfuck has two conditional jump instructions, `[` and `]`. For our purposes we can treat each pair of square brackets as a single instruction (conceptually it is a `while` loop statement). So for example `++[>+<-]>` has four instructions:
 
     (let [state {:ptr 0, :cells [0N]}]
       (-> state 
         cell-inc 
         cell-inc
-        loop-nested  ;[>+<-]
+        loop-nested  ; [>+<-]
         move-right
         )
  
@@ -142,7 +143,7 @@ OK, so let's define all these functions:
 	        loop-nested
 	        move-right)))
 
-Look carefully! The program starts in the bottom. When it reaches `loop-nested` function (state transformation) it enters nested loop defined above. The loop first checks current cell - if it's zero, present `state` is returned. Otherwise a sequence of `state` transformations defined within nested loop are executed. Once they are all performed with call `recur` in order to start subsequent iteration. Sooner or later `loop-nested` exits and `move-right` (last line above) will execute.
+Look carefully! The program starts at the bottom. When it reaches `loop-nested` function (state transformation) it enters nested loop defined above. The loop first checks current cell - if it's zero, present `state` is returned. Otherwise a sequence of `state` transformations defined within nested loop are executed. Once they are all performed `recur` is called in order to start subsequent iteration. Sooner or later `loop-nested` exits and `move-right` (last line above) will execute.
 
 Of course we can nest loops just like in any other programming language, for example: `>+>+++[-<[-<+++++>]<++[->+<]>>]<` is probably the shortest known brainfuck program that generates... 187 constant. You can see outer loop enclosing two nested loops. The equivalent Clojure code we would like to generate looks like that:
 
@@ -178,9 +179,9 @@ I left comments to guide you which parts correspond to which pieces of brainfuck
 
 ---
 
-Right, so we see how brainfuck can be translated into Clojure. Let's implement such a translator (which I called a *compiler* in the title since it looks better). It might seem complex (especially after seeing code sample above) but the whole translator [fits on one screen](https://github.com/nurkiewicz/brainfuck.clj/blob/master/src/com/blogspot/nurkiewicz/brainfuck/compiler.clj)!
+Right, so we see how brainfuck can be translated into Clojure. Let's implement such a translator (which I called a *compiler* in the title since it sounds better). It might seem complex, especially after seeing code sample above, but the whole translator [fits on one screen](https://github.com/nurkiewicz/brainfuck.clj/blob/master/src/com/blogspot/nurkiewicz/brainfuck/compiler.clj)!
 
-The implementation consists of two main parts - generating code for a block of brainfuck source and injecting function for nested loop. The first part simplified for clarity:
+The implementation consists of two main parts - generating code for a block of brainfuck source and injecting function for nested loop. The first part, simplified for clarity:
 
     (defn- translate-block [brainfuck-source]
       (apply list
@@ -197,7 +198,7 @@ The implementation consists of two main parts - generating code for a block of b
             nil code
             (recur code (rest program))))))
 
-Observe how we iterate over character of brainfuck source and append appropriate commands to Clojure `code` being built (initially set to `(letfn [] ())`). Opening square bracket (`[`) appends auto-generated loop in `insert-loop-fun` function:
+Observe how we iterate over characters of brainfuck source and append appropriate commands to Clojure `code` being incrementally built (initially set to `(letfn [] ())`). Opening square bracket (`[`) appends auto-generated loop in `insert-loop-fun` function:
 
     (defn- insert-loop-fun [loop-name brainfuck-source code]
       (let [loop-body "..." 
