@@ -24,10 +24,8 @@
 
 (defn- append-cmd [code cmd] (update-in code [2] #(conj % cmd)))
 
-(defn- optimize [[_ inner-loops block]]
-	(if (empty? inner-loops)
-		block
-		(list `letfn inner-loops block)))
+(defn- optimize [[_ inner-loops block :as code]]
+	(if (empty? inner-loops) block code))
 
 (defn- brainfuck-seq-translator [program]
 	(apply list
