@@ -11,8 +11,8 @@
 			\[	(recur (inc idx) (inc open-brackets))
 				(recur (inc idx) open-brackets))))
 
-(defn- insert-loop-fun [loop-name program code]
-	(let [loop-body (->> program (take (loop-end-idx program)) rest)
+(defn- insert-loop-fun [loop-name brainfuck-source code]
+	(let [loop-body (->> brainfuck-source (take (loop-end-idx brainfuck-source)) rest)
 		loop-body-code (translate-block loop-body)
 		loop-code 
 			`(loop [~'state ~'state]
@@ -27,22 +27,21 @@
 (defn- optimize [[_ inner-loops block :as code]]
 	(if (empty? inner-loops) block code))
 
-(defn- translate-block [program]
+(defn- translate-block [brainfuck-source]
 	(apply list
-		(loop [code [`letfn [] `[-> ~'state]], program program]
+		(loop [code [`letfn [] `[-> ~'state]], program brainfuck-source]
 			(condp = (first program)
 				\> (recur (append-cmd code `~'move-right) (rest program))
 				\< (recur (append-cmd code `~'move-left) (rest program))
 				\+ (recur (append-cmd code `~'cell-inc) (rest program))
 				\- (recur (append-cmd code `~'cell-dec) (rest program))
 				\[ (let [loop-name (gensym "loop")
-					loop-body (drop (loop-end-idx program) program)]
+						source-after-loop (drop (loop-end-idx program) program)]
 					(recur 
 						(->> `~loop-name (append-cmd code) (insert-loop-fun loop-name program)) 
-						loop-body))
+						source-after-loop))
 				nil (-> code (update-in [2] #(apply list %)) optimize)
-				(recur code (rest program))
-				))))
+				(recur code (rest program))))))
 
 (defmacro brainfuck [& instructions]
 	(concat

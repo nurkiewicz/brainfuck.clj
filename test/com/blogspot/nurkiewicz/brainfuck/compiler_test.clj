@@ -1,6 +1,6 @@
 (ns com.blogspot.nurkiewicz.brainfuck.compiler-test
   (:require [clojure.test :refer :all]
-            [com.blogspot.nurkiewicz.brainfuck.compiler :refer :all]))
+			[com.blogspot.nurkiewicz.brainfuck.compiler :refer :all]))
 
 (deftest empty-program
 	(is (= (brainfuck) {:ptr 0 :cells [0]})))
@@ -18,4 +18,17 @@
 (deftest loops
 	(is (= (brainfuck +[-]>) {:ptr 1 :cells [0 0]}))
 	(is (= (brainfuck +++>[-]<[->+<]) {:ptr 0 :cells [0 3]}))
-	(is (= (brainfuck >+>+++[-<[-<+++++>]<++[->+<]>>]<) {:ptr 1 :cells [0 187 0]})))
+	(is (= 
+	(brainfuck 
+		>+>+++[
+		  -<[
+			-<+++++>
+		  ]
+		  <++[
+			->+<
+		  ]
+		>>
+		]
+	  <
+	) 
+	{:ptr 1 :cells [0 187 0]})))
