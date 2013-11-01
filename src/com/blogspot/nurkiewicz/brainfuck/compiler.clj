@@ -1,6 +1,6 @@
 (ns com.blogspot.nurkiewicz.brainfuck.compiler)
 
-(declare brainfuck-seq-translator)
+(declare translate-block)
 
 (defn- loop-end-idx [program]
 	(loop [idx 1 open-brackets 0]
@@ -13,7 +13,7 @@
 
 (defn- insert-loop-fun [loop-name program code]
 	(let [loop-body (->> program (take (loop-end-idx program)) rest)
-		loop-body-code (brainfuck-seq-translator loop-body)
+		loop-body-code (translate-block loop-body)
 		loop-code 
 			`(loop [~'state ~'state]
 				(if (zero? (nth (:cells ~'state) (:ptr ~'state)))
@@ -27,7 +27,7 @@
 (defn- optimize [[_ inner-loops block :as code]]
 	(if (empty? inner-loops) block code))
 
-(defn- brainfuck-seq-translator [program]
+(defn- translate-block [program]
 	(apply list
 		(loop [code [`letfn [] `[-> ~'state]], program program]
 			(condp = (first program)
@@ -44,7 +44,7 @@
 				(recur code (rest program))
 				))))
 
-(defn brainfuck-translator [& lines]
+(defmacro brainfuck [& instructions]
 	(concat
 		`(let [~'state {:cells [0N], :ptr 0}
 			~'make-update-cell-fn (fn [~'fun]
@@ -57,4 +57,4 @@
 						(assoc ~'state :ptr (inc ~'ptr) :cells (conj ~'cells 0N))
 						(assoc ~'state :ptr (inc ~'ptr)))))
 			~'move-left (fn [~'state] (update-in ~'state [:ptr] dec))])
-		(list (brainfuck-seq-translator (apply str lines)))))
+		(list (translate-block (str instructions)))))
